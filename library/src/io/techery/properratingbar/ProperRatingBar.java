@@ -5,7 +5,8 @@ import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.Nullable;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.View;
@@ -55,7 +56,7 @@ public class ProperRatingBar extends LinearLayout {
 
     private int totalTicks;
     private int lastSelectedTickIndex;
-    private boolean isClickable;
+    private boolean clickable;
     private String symbolicTick;
     private int customTextSize;
     private int customTextStyle;
@@ -72,7 +73,6 @@ public class ProperRatingBar extends LinearLayout {
     public ProperRatingBar(Context context, AttributeSet attrs) {
         super(context, attrs);
         init(context, attrs);
-        addChildren(context);
     }
 
     private void init(Context context, AttributeSet attrs) {
@@ -80,12 +80,12 @@ public class ProperRatingBar extends LinearLayout {
         //
         totalTicks = a.getInt(R.styleable.ProperRatingBar_prb_totalTicks, DF_TOTAL_TICKS);
         rating = a.getInt(R.styleable.ProperRatingBar_prb_defaultRating, DF_DEFAULT_TICKS);
-        if (rating > totalTicks) rating = totalTicks;
-        lastSelectedTickIndex = rating - 1;
-        isClickable = a.getBoolean(R.styleable.ProperRatingBar_prb_clickable, DF_CLICKABLE);
+        //
+        clickable = a.getBoolean(R.styleable.ProperRatingBar_prb_clickable, DF_CLICKABLE);
         //
         symbolicTick = a.getString(R.styleable.ProperRatingBar_prb_symbolicTick);
         if (symbolicTick == null) symbolicTick = context.getString(DF_SYMBOLIC_TICK_RES);
+        //
         customTextSize = a.getDimensionPixelSize(R.styleable.ProperRatingBar_android_textSize,
                 context.getResources().getDimensionPixelOffset(DF_SYMBOLIC_TEXT_SIZE_RES));
         customTextStyle = a.getInt(R.styleable.ProperRatingBar_android_textStyle, DF_SYMBOLIC_TEXT_STYLE);
@@ -99,97 +99,206 @@ public class ProperRatingBar extends LinearLayout {
         tickSpacing = a.getDimensionPixelOffset(R.styleable.ProperRatingBar_prb_tickSpacing,
                 context.getResources().getDimensionPixelOffset(DF_TICK_SPACING_RES));
         //
-        if (tickNormalDrawable == null || tickSelectedDrawable == null) {
-            useSymbolicTick = true;
-        }
+        afterInit();
         //
         a.recycle();
     }
 
-    private void addChildren(Context context) {
+    private void afterInit() {
+        if (rating > totalTicks) rating = totalTicks;
+        lastSelectedTickIndex = rating - 1;
+        //
+        if (tickNormalDrawable == null || tickSelectedDrawable == null) {
+            useSymbolicTick = true;
+        }
+        //
+        addTicks(this.getContext());
+    }
+
+    private void addTicks(Context context) {
+        this.removeAllViews();
         for (int i = 0; i < totalTicks; i++) {
-            addChild(context, i);
+            addTick(context, i);
         }
-        redrawChildren();
+        redrawTicks();
     }
 
-    private void addChild(Context context, int position) {
+    private void addTick(Context context, int position) {
         if (useSymbolicTick) {
-            addSymbolicChild(context, position);
+            addSymbolicTick(context, position);
         } else {
-            addDrawableChild(context, position);
+            addDrawableTick(context, position);
         }
     }
 
-    private void addSymbolicChild(Context context, int position) {
+    private void addSymbolicTick(Context context, int position) {
         TextView tv = new TextView(context);
         tv.setText(symbolicTick);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, customTextSize);
         if (customTextStyle != 0) {
             tv.setTypeface(Typeface.DEFAULT, customTextStyle);
         }
-        if (isClickable) {
-            tv.setTag(R.id.prb_child_tag_id, position);
-            tv.setOnClickListener(mTickClickedListener);
-        }
+        updateTicksClickParameters(tv, position);
         this.addView(tv);
     }
 
-    private void addDrawableChild(Context context, int position) {
+    private void addDrawableTick(Context context, int position) {
         ImageView iv = new ImageView(context);
         iv.setPadding(tickSpacing, tickSpacing, tickSpacing, tickSpacing);
-        if (isClickable) {
-            iv.setTag(R.id.prb_child_tag_id, position);
-            iv.setOnClickListener(mTickClickedListener);
-        }
+        updateTicksClickParameters(iv, position);
         this.addView(iv);
+    }
+
+    private void updateTicksClickParameters(View tick, int position) {
+        if (clickable) {
+            tick.setTag(R.id.prb_tick_tag_id, position);
+            tick.setOnClickListener(mTickClickedListener);
+        } else {
+            tick.setOnClickListener(null);
+        }
     }
 
     private View.OnClickListener mTickClickedListener = new OnClickListener() {
         @Override
         public void onClick(View v) {
-            lastSelectedTickIndex = (int) v.getTag(R.id.prb_child_tag_id);
+            lastSelectedTickIndex = (int) v.getTag(R.id.prb_tick_tag_id);
             rating = lastSelectedTickIndex + 1;
-            redrawChildren();
+            redrawTicks();
             if (listener != null) listener.onRatePicked(ProperRatingBar.this);
         }
     };
 
-    private void redrawChildren() {
-        for (int i = 0; i < totalTicks; i++) {
-            if (useSymbolicTick) {
-                redrawChildSelection((TextView) ProperRatingBar.this.getChildAt(i), i <= lastSelectedTickIndex);
-            } else {
-                redrawChildSelection((ImageView) ProperRatingBar.this.getChildAt(i), i <= lastSelectedTickIndex);
+    private void redrawTicks() {
+        iterateTicks(new TicksIterator() {
+            @Override
+            public void onTick(View tick, int position) {
+                if (useSymbolicTick) {
+                    redrawTickSelection((TextView) tick,
+                            position <= lastSelectedTickIndex);
+                } else {
+                    redrawTickSelection((ImageView) tick,
+                            position <= lastSelectedTickIndex);
+                }
             }
+        });
+    }
+
+    private void redrawTickSelection(ImageView tick, boolean isSelected) {
+        if (isSelected) {
+            tick.setImageDrawable(tickSelectedDrawable);
+        } else {
+            tick.setImageDrawable(tickNormalDrawable);
         }
     }
 
-    private void redrawChildSelection(ImageView child, boolean isSelected) {
+    private void redrawTickSelection(TextView tick, boolean isSelected) {
         if (isSelected) {
-            child.setImageDrawable(tickSelectedDrawable);
+            tick.setTextColor(customTextSelectedColor);
         } else {
-            child.setImageDrawable(tickNormalDrawable);
+            tick.setTextColor(customTextNormalColor);
         }
     }
 
-    private void redrawChildSelection(TextView child, boolean isSelected) {
-        if (isSelected) {
-            child.setTextColor(customTextSelectedColor);
-        } else {
-            child.setTextColor(customTextNormalColor);
+    private void iterateTicks(TicksIterator iterator) {
+        if (iterator == null) throw new IllegalArgumentException("Iterator can't be null!");
+
+        for (int i = 0; i < getChildCount(); i++) {
+            iterator.onTick(getChildAt(i), i);
         }
+    }
+
+    private interface TicksIterator {
+        void onTick(View tick, int position);
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // them getters and setters methods
+    // Saving and restoring state
     ///////////////////////////////////////////////////////////////////////////
+
+    @Override
+    public Parcelable onSaveInstanceState() {
+        SavedState savedState = new SavedState(super.onSaveInstanceState());
+        savedState.rating = rating;
+        savedState.clickable = clickable;
+
+        return savedState;
+    }
+
+    @Override
+    public void onRestoreInstanceState(Parcelable state) {
+        if (!(state instanceof SavedState)) {
+            super.onRestoreInstanceState(state);
+            return;
+        }
+
+        SavedState savedState = (SavedState) state;
+        super.onRestoreInstanceState(savedState.getSuperState());
+
+        setRating(savedState.rating);
+    }
+
+    static class SavedState extends BaseSavedState {
+
+        int rating;
+        boolean clickable;
+
+        SavedState(Parcelable superState) {
+            super(superState);
+        }
+
+        private SavedState(Parcel in) {
+            super(in);
+            this.rating = in.readInt();
+            this.clickable = in.readByte() == 1;
+        }
+
+        @Override
+        public void writeToParcel(Parcel out, int flags) {
+            super.writeToParcel(out, flags);
+            out.writeInt(this.rating);
+            out.writeByte((byte) (this.clickable ? 1 : 0));
+        }
+
+        public static final Parcelable.Creator<SavedState> CREATOR = new Parcelable.Creator<SavedState>() {
+            public SavedState createFromParcel(Parcel in) {
+                return new SavedState(in);
+            }
+
+            public SavedState[] newArray(int size) {
+                return new SavedState[size];
+            }
+        };
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Essential public methods
+    ///////////////////////////////////////////////////////////////////////////
+
+    public boolean isClickable() {
+        return clickable;
+    }
+
+    /**
+     * Nifty sugar method to just toggle clickable to opposite state.
+     */
+    public void toggleClickable() {
+        setClickable(!clickable);
+    }
+
+    public void setClickable(boolean clickable) {
+        this.clickable = clickable;
+        iterateTicks(new TicksIterator() {
+            @Override
+            public void onTick(View tick, int position) {
+                updateTicksClickParameters(tick, position);
+            }
+        });
+    }
 
     /**
      * Get the attached {@link RatingListener}
      * @return listener or null if none was set
      */
-    @Nullable
     public RatingListener getListener() {
         return listener;
     }
@@ -197,8 +306,12 @@ public class ProperRatingBar extends LinearLayout {
     /**
      * Set the {@link RatingListener} to be called when user taps rating bar's ticks
      * @param listener listener to set
+     *
+     * @throws IllegalArgumentException if listener is <b>null</b>
      */
     public void setListener(RatingListener listener) {
+        if (listener == null) throw new IllegalArgumentException("listener cannot be null!");
+
         this.listener = listener;
     }
 
@@ -225,6 +338,15 @@ public class ProperRatingBar extends LinearLayout {
         if (rating  > this.totalTicks) rating = totalTicks;
         this.rating = rating;
         lastSelectedTickIndex = rating - 1;
-        redrawChildren();
+        redrawTicks();
+    }
+
+    public void setSymbolicTick(String tick) {
+        this.symbolicTick = tick;
+        afterInit();
+    }
+
+    public String getSymbolicTick() {
+        return this.symbolicTick;
     }
 }

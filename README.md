@@ -38,11 +38,14 @@ Besides that, we needed to use symbols like '$' as rating bar ticks in our proje
 
 ## Installation
 
+[![](https://jitpack.io/v/techery/properratingbar.svg)](https://jitpack.io/#techery/properratingbar)
+
 Library's minSdkVersion is set to 14.
 
-We use jitpack, so you can use github sources in your module's `build.gradle` file:
+We use jitpack, so you can obtain made-up library right from our github sources in your module's `build.gradle` file:
 
-`compile 'com.github.techery:ProperRatingBar:xxxyyyzzzw'` where xxxyyyzzzw = first 10 digits of desired commit to build.
+`compile 'com.github.techery:properratingbar:{version_name}'`
+
 Also you need to add jitpack as repository in the same file:
 ```groovy
 repositories {
@@ -70,6 +73,16 @@ Here is the list of applicable attributes:
 
 Also there's a number of methods to operate on ProperRatingBar programmatically:
 ```java
+
+public boolean isClickable();
+
+/**
+ * Nifty sugar method to just toggle clickable to opposite state.
+ */
+public void toggleClickable();
+
+public void setClickable(boolean clickable);
+
 /**
 * Get the attached {@link RatingListener}
 * @return listener or null if none was set
@@ -107,16 +120,21 @@ No test coverage is supplied so far - might be added later.
 
 ## Versions
 
-Current version is set to 0.0.1
-Consider this to be itinial commit meaning that given code is likely to be refactored and partly re-done (including API changing with no backward-compatibility).
+Actual version can be found [here](https://github.com/techery/ProperRatingBar/releases/latest)
 
-After that versionName will gain some more convincing and reliable number like "1.0" and API will be frozen.
+Be warned that given code is likely to be refactored and partly re-done (including possible API changes with no backward-compatibility).
+
+## Contribution
+
+PR's are welcome. Just follow the general code style (both xml and java).
+
+Proper code style setup might be added later and included to repository.
 
 ## License
 
     The MIT License (MIT)
 
-    Copyright (c) 2015 Techery (http://techery.io/)
+    Copyright (c) 2016 Techery (http://techery.io/)
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
